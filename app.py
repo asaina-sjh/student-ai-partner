@@ -60,7 +60,7 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
                 full_prompt = f"{SYSTEM_INSTRUCTION}\n\n生徒の入力: {prompt}"
                 
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-1.5-flash",
                     contents=full_prompt,
                 )
                 
