@@ -116,6 +116,5 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
                     st.session_state.messages.append({"role": "assistant", "content": ai_text})
 
                 except Exception as e:
-                    # 【変更点8】エラーの詳細も表示（生徒に公開する本番では st.exception(e) を削除）
                     st.error("AIからの応答取得中にエラーが発生しました。もう一度お試しください。")
-                    st.exception(e)
+            
