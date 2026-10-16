@@ -8,11 +8,11 @@ st.set_page_config(page_title="探究学習 AIパートナー", page_icon="💡"
 st.title("💡 探究学習・レポート壁打ち AI")
 st.caption("調べ学習のヒントや、レポートの構成づくりを一緒に考えるAIです。")
 
-# APIキーの取得（環境変数から安全に読み込み）
+# APIキーの取得
 api_key = os.environ.get("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("APIキーが設定されていません。管理者にお問い合わせください。")
+    st.error("APIキーが設定されていません。StreamlitのSecretsにGEMINI_API_KEYを設定してください。")
     st.stop()
 
 client = genai.Client(api_key=api_key)
@@ -55,21 +55,17 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
     # AIの応答生成
     with st.chat_message("assistant"):
         with st.spinner("思考中..."):
-            # 会話履歴をGemini用フォーマットに変換
-            contents = []
-            for msg in st.session_state.messages:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
-
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    temperature=0.7,
+            try:
+                # システムプロンプトと入力内容をまとめてシンプルに送信
+                full_prompt = f"{SYSTEM_INSTRUCTION}\n\n生徒の入力: {prompt}"
+                
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=full_prompt,
                 )
-            )
-            
-            ai_text = response.text
-            st.markdown(ai_text)
-            st.session_state.messages.append({"role": "assistant", "content": ai_text})
+                
+                ai_text = response.text
+                st.markdown(ai_text)
+                st.session_state.messages.append({"role": "assistant", "content": ai_text})
+            except Exception as e:
+                st.error("AIからの応答取得中にエラーが発生しました。もう一度お試しください。")
