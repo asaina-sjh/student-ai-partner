@@ -8,7 +8,7 @@ st.set_page_config(page_title="探究学習 AIパートナー", page_icon="💡"
 st.title("💡 探究学習・レポート壁打ち AI")
 st.caption("調べ学習のヒントや、レポートの構成づくりを一緒に考えるAIです。")
 
-# APIキーの取得（Streamlit Secrets → 環境変数の順に探す）
+# 【変更点1】APIキーの取得：Streamlit Secrets → 環境変数の順に探す
 api_key = None
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -21,11 +21,10 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-client = genai.Client(api_key=api_key)
-
-# 上から順に試す（先頭が最優先）
+# 【変更点2】モデル名：上から順に試す（先頭が最優先）
 MODEL_CANDIDATES = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"]
 
+# 【変更点3】フォールバック関数：モデルが404のときだけ次の候補を試す
 def generate_with_fallback(contents, config):
     last_error = None
     for model_name in MODEL_CANDIDATES:
@@ -37,13 +36,12 @@ def generate_with_fallback(contents, config):
             )
         except Exception as e:
             last_error = e
-            # 404（モデル終了）のときだけ次の候補へ
             if "404" in str(e) or "NOT_FOUND" in str(e):
                 continue
             raise
     raise last_error
 
-# ガードレール＆ペルソナプロンプト
+# 【変更点4】ガードレール＆ペルソナプロンプト（ルールを5〜7に追加）
 SYSTEM_INSTRUCTION = """
 あなたは中高生の探究学習やレポート作成をサポートする「対話型学習伴走AI」です。
 
@@ -58,7 +56,7 @@ SYSTEM_INSTRUCTION = """
 7. 回答は中高生に分かりやすい言葉で、長くなりすぎないようにしてください。
 """
 
-# 簡易入力チェック用キーワード
+# 簡易入力チェック用キーワード（言い回しを追加）
 PROHIBITED = ["代わりに書いて", "代わりに書", "文章を作成して", "宿題やって", "全部書いて", "レポートを書いて"]
 REFUSAL = (
     "AIが代わりにレポート本文を作成することはできません🙇‍♂️ "
@@ -81,7 +79,8 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # ガードレール①：簡易キーワードチェック
+    # 【変更点5】ガードレール①：簡易キーワードチェック
+    # （st.rerun()をやめ、その場で断り文を表示するように修正）
     if any(kw in prompt for kw in PROHIBITED):
         with st.chat_message("assistant"):
             st.markdown(REFUSAL)
@@ -91,7 +90,7 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
         with st.chat_message("assistant"):
             with st.spinner("思考中..."):
                 try:
-                    # 会話履歴をGemini形式に変換（役割は "user" / "model"）
+                    # 【変更点6】会話履歴をGemini形式に変換（AIが文脈を踏まえて答えられる）
                     contents = []
                     for m in st.session_state.messages:
                         role = "user" if m["role"] == "user" else "model"
@@ -102,7 +101,8 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
                             )
                         )
 
-                    # ガードレール②：system_instructionで正式に設定
+                    # 【変更点7】ガードレール②：system_instructionで正式に設定
+                    # ＋ フォールバック関数を使って呼び出す
                     response = generate_with_fallback(
                         contents,
                         types.GenerateContentConfig(
@@ -116,6 +116,6 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
                     st.session_state.messages.append({"role": "assistant", "content": ai_text})
 
                 except Exception as e:
-                    # 原因確認用（公開時は st.error の1行目だけにしてもOK）
+                    # 【変更点8】エラーの詳細も表示（生徒に公開する本番では st.exception(e) を削除）
                     st.error("AIからの応答取得中にエラーが発生しました。もう一度お試しください。")
                     st.exception(e)
