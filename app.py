@@ -21,7 +21,27 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-2.5-flash"
+client = genai.Client(api_key=api_key)
+
+# 上から順に試す（先頭が最優先）
+MODEL_CANDIDATES = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"]
+
+def generate_with_fallback(contents, config):
+    last_error = None
+    for model_name in MODEL_CANDIDATES:
+        try:
+            return client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=config,
+            )
+        except Exception as e:
+            last_error = e
+            # 404（モデル終了）のときだけ次の候補へ
+            if "404" in str(e) or "NOT_FOUND" in str(e):
+                continue
+            raise
+    raise last_error
 
 # ガードレール＆ペルソナプロンプト
 SYSTEM_INSTRUCTION = """
@@ -83,10 +103,9 @@ if prompt := st.chat_input("調べたいことや、レポートの悩みを教�
                         )
 
                     # ガードレール②：system_instructionで正式に設定
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
-                        contents=contents,
-                        config=types.GenerateContentConfig(
+                    response = generate_with_fallback(
+                        contents,
+                        types.GenerateContentConfig(
                             system_instruction=SYSTEM_INSTRUCTION,
                             temperature=0.7,
                         ),
